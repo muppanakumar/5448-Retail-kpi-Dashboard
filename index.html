@@ -1,0 +1,653 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B7A75">
+<title>Retail KPI Live</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=Schibsted+Grotesk:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#E8ECEF; --surface:#FFFFFF; --ink:#10202C; --muted:#5A6A77; --line:#D3DBE1;
+  --accent:#0B7A75; --accent-soft:#D7EEEC; --warn:#96600A; --warn-soft:#FBEBCB; --bad:#B3261E; --bad-soft:#F8DAD7;
+  --plan:#7A8A97;
+  --ui:'Schibsted Grotesk',system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --display:'Fraunces',Georgia,'Times New Roman',serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D151B; --surface:#15212A; --ink:#E6EDF1; --muted:#93A4B0; --line:#26353F;
+    --accent:#3CC8BD; --accent-soft:#12403E; --warn:#E8B04A; --warn-soft:#3A2D10; --bad:#FF8A80; --bad-soft:#40201D; --plan:#7F909C;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D151B; --surface:#15212A; --ink:#E6EDF1; --muted:#93A4B0; --line:#26353F;
+  --accent:#3CC8BD; --accent-soft:#12403E; --warn:#E8B04A; --warn-soft:#3A2D10; --bad:#FF8A80; --bad-soft:#40201D; --plan:#7F909C;
+}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*::before,*::after{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--ui);-webkit-text-size-adjust:100%}
+.wrap{max-width:1240px;margin:0 auto;padding:20px 16px 40px}
+h1{font:600 28px/1.15 var(--display);margin:0;letter-spacing:-.01em}
+h2{font:600 15px/1.3 var(--ui);margin:0}
+.top{display:flex;flex-wrap:wrap;gap:12px 24px;justify-content:space-between;align-items:flex-end;margin-bottom:14px}
+.sub{margin:4px 0 0;color:var(--muted);font-size:13px}
+.status{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:13px;color:var(--muted)}
+.status b{color:var(--ink);font-weight:600}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:var(--plan);margin-right:6px}
+.dot.live{background:var(--accent);animation:pulse 2s ease-in-out infinite}
+.dot.down{background:var(--bad)}
+.dot.wait{background:var(--warn)}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 color-mix(in srgb,var(--accent) 55%,transparent)}50%{box-shadow:0 0 0 6px transparent}}
+@media (prefers-reduced-motion:reduce){.dot.live{animation:none}}
+.controls{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+select,button,input{font:inherit;color:var(--ink)}
+select,.btn{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:8px 12px;min-height:40px;cursor:pointer}
+.btn:hover,select:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+:root[data-theme="dark"] .btn.primary{color:#062725}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);background:var(--surface);border:1px solid var(--line);border-radius:12px;margin-bottom:14px;transition:opacity .3s}
+.kpis.stale{opacity:.55}
+.kpi{padding:16px 18px;border-left:1px solid var(--line);min-width:0}
+.kpi:first-child{border-left:0}
+.kpi .k{font-size:13px;color:var(--muted)}
+.kpi .v{font:500 30px/1.15 var(--display);font-variant-numeric:lining-nums tabular-nums;margin:2px 0 2px;white-space:nowrap}
+.kpi .s{font-size:12.5px;color:var(--muted)}
+.kpi .v.ok{color:var(--accent)} .kpi .v.warn{color:var(--warn)} .kpi .v.bad{color:var(--bad)}
+.spark{display:block;width:100%;height:28px;margin-top:8px;color:var(--accent)}
+.grid{display:grid;grid-template-columns:1.7fr 1fr;gap:14px}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;min-width:0}
+.panel .hd{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.hint{font-size:12.5px;color:var(--muted)}
+.full{grid-column:1/-1}
+#readout{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums;display:flex;gap:16px;flex-wrap:wrap}
+#readout b{color:var(--ink);font-weight:600}
+.key{display:inline-block;width:18px;height:0;border-top:2px solid var(--accent);vertical-align:middle;margin-right:5px}
+.key.plan{border-top:2px dashed var(--plan)}
+#chart{touch-action:pan-y;cursor:crosshair;min-height:200px}
+#chart svg{display:block}
+#chart text{font:11.5px var(--ui);fill:var(--muted)}
+.empty{color:var(--muted);padding:24px 0}
+ol.feed{list-style:none;margin:0;padding:0;max-height:330px;overflow:auto}
+.feed li{padding:9px 0 9px 12px;border-top:1px solid var(--line);border-left:3px solid var(--plan);margin-top:-1px}
+.feed li.bad{border-left-color:var(--bad)} .feed li.good{border-left-color:var(--accent)} .feed li.warn{border-left-color:var(--warn)}
+.feed .t{font-weight:600;font-size:14px}
+.feed .m{font-size:13px;color:var(--muted)}
+.feed .when{float:right;font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;margin-left:8px}
+.row{display:grid;grid-template-columns:minmax(120px,1.3fr) 1fr 2fr 70px 96px;gap:12px;align-items:center;padding:10px 0;border-top:1px solid var(--line)}
+.row.head{border-top:0;font-size:12.5px;color:var(--muted);padding-top:0}
+.nm{font-weight:600;min-width:0}
+.nm small{display:block;font-weight:400;color:var(--muted);font-size:12.5px}
+.tag{display:inline-block;font-size:11.5px;font-weight:600;border-radius:99px;padding:1px 8px;margin-left:6px;vertical-align:1px}
+.tag.bad{background:var(--bad-soft);color:var(--bad)} .tag.good{background:var(--accent-soft);color:var(--accent)}
+.num{font-variant-numeric:tabular-nums}
+.track{position:relative;height:10px;background:var(--bg);border-radius:6px}
+.fill{position:absolute;left:0;top:0;bottom:0;border-radius:6px;background:var(--accent);transition:width .6s}
+.fill.warn{background:var(--warn)} .fill.bad{background:var(--bad)}
+.mark{position:absolute;top:-4px;bottom:-4px;width:2px;background:var(--ink);opacity:.6}
+.pct{font-weight:600;font-variant-numeric:tabular-nums;text-align:right}
+.pct.warn{color:var(--warn)} .pct.bad{color:var(--bad)} .pct.ok{color:var(--accent)}
+.rs{color:var(--accent);height:22px;width:96px}
+.mix{display:grid;gap:10px}
+.mix .r{display:grid;grid-template-columns:96px 1fr 44px;gap:10px;align-items:center;font-size:13.5px}
+.mix .track{height:12px}
+.ask{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px}
+.ask input{flex:1 1 260px;min-height:40px;background:var(--bg);border:1px solid var(--line);border-radius:8px;padding:8px 12px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
+.chip{font-size:13px;background:var(--bg);border:1px solid var(--line);border-radius:99px;padding:5px 12px;cursor:pointer}
+.chip:hover{border-color:var(--accent)}
+pre.sql{background:var(--bg);border-radius:8px;padding:10px 12px;margin:0 0 10px;overflow-x:auto;font:12.5px/1.5 ui-monospace,Menlo,Consolas,monospace;white-space:pre-wrap}
+.tbl{overflow-x:auto}
+.tbl table{border-collapse:collapse;width:100%;font-size:13.5px}
+.tbl th,.tbl td{text-align:left;padding:7px 10px;border-top:1px solid var(--line);white-space:nowrap}
+.tbl th{font-weight:600;color:var(--muted);border-top:0}
+.tbl td.n,.tbl th.n{text-align:right;font-variant-numeric:tabular-nums}
+details{margin-top:14px;color:var(--muted);font-size:13.5px}
+details summary{cursor:pointer;color:var(--ink);font-weight:600}
+details p,details li{max-width:78ch}
+code{font:12.5px ui-monospace,Menlo,Consolas,monospace;background:var(--bg);padding:1px 5px;border-radius:4px}
+.sr{position:absolute;left:-9999px}
+@media (max-width:980px){
+  .grid{grid-template-columns:1fr}
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .kpi{border-left:0;border-top:1px solid var(--line)}
+  .kpi:nth-child(-n+2){border-top:0}
+  .kpi:nth-child(even){border-left:1px solid var(--line)}
+  .kpi:last-child{grid-column:1/-1;border-left:0}
+}
+@media (max-width:640px){
+  h1{font-size:24px}
+  .kpi{padding:12px 14px} .kpi .v{font-size:24px}
+  .row{grid-template-columns:1fr auto;gap:6px 10px}
+  .row.head{display:none}
+  .row .rev{text-align:right}
+  .row .bar{grid-column:1/-1;order:3}
+  .row .pct{grid-column:2;order:2}
+  .row .rs{display:none}
+  .mix .r{grid-template-columns:80px 1fr 40px}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Chain sales, live</h1>
+      <p class="sub" id="clock">Connecting to the sales stream…</p>
+    </div>
+    <div class="status" id="status"></div>
+  </header>
+
+  <div class="controls">
+    <label class="sr" for="region">Region</label>
+    <select id="region"><option value="all">All regions</option></select>
+    <button class="btn" id="drop" type="button">Drop connection</button>
+    <button class="btn" id="anom" type="button">Trigger a store anomaly</button>
+    <button class="btn primary" id="install" type="button" hidden>Install app</button>
+  </div>
+  <div class="sr" id="sr" aria-live="polite"></div>
+
+  <section class="kpis stale" id="kpis" aria-label="Key performance indicators"></section>
+
+  <main class="grid">
+    <section class="panel" aria-labelledby="h-chart">
+      <div class="hd">
+        <h2 id="h-chart">Revenue per minute</h2>
+        <span class="hint"><span class="key"></span>Actual <span class="key plan" style="margin-left:10px"></span>Plan</span>
+      </div>
+      <div id="readout"></div>
+      <div id="chart"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-feed">
+      <div class="hd"><h2 id="h-feed">Insights and alerts</h2><span class="hint">Generated from the stream</span></div>
+      <ol class="feed" id="feed"></ol>
+    </section>
+
+    <section class="panel" aria-labelledby="h-stores">
+      <div class="hd"><h2 id="h-stores">Stores against plan</h2><span class="hint">Bar shows revenue vs plan to date; the tick marks 100%</span></div>
+      <div id="stores"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-mix">
+      <div class="hd"><h2 id="h-mix">Category mix</h2><span class="hint">Share of revenue today</span></div>
+      <div class="mix" id="mix"></div>
+    </section>
+
+    <section class="panel full" aria-labelledby="h-ask">
+      <div class="hd"><h2 id="h-ask">Ask the data</h2><span class="hint">Plain-English questions turn into SQL over the live tables</span></div>
+      <div class="ask">
+        <label class="sr" for="q">Question</label>
+        <input id="q" type="text" placeholder="For example: top 3 stores by revenue" autocomplete="off">
+        <button class="btn primary" id="go" type="button">Ask</button>
+      </div>
+      <div class="chips" id="chips"></div>
+      <div id="answer"></div>
+    </section>
+  </main>
+
+  <details>
+    <summary>How this prototype works</summary>
+    <p>A store-level sales feed pushes one JSON message per second over a socket. The first message after connecting is a full snapshot; every later message is a small delta with a sequence number. If the browser sees a gap it asks for a new snapshot, and if the link drops it reconnects with exponential backoff (1, 2, 4, 8 seconds) and reloads state. Try the <b>Drop connection</b> button.</p>
+    <ul>
+      <li>The feed here is simulated inside the page by <code>MockSocket</code>, because published pages cannot open outside connections. In your own deployment, replace <code>new MockSocket()</code> with <code>new WebSocket("wss://your-host/stream")</code> and keep the same message shapes.</li>
+      <li>One store-day is compressed into 12 real minutes (1 second is 1 store minute). Sales volumes, category weights and the daily demand curve are illustrative. They are not taken from a government dataset.</li>
+      <li>Alerts compare each store's last 5 minutes with the 40 minutes before. A ratio above 1.8 raises a surge, below 0.45 raises a dip.</li>
+      <li>The question box uses simple rules to write SQL. A production version would send the question and table schema to a language model and run the returned query on the warehouse.</li>
+      <li>The page is responsive and respects phone safe areas. Installing it as a PWA needs a manifest and service worker served from your own origin.</li>
+    </ul>
+  </details>
+</div>
+
+<script>
+(() => {
+'use strict';
+const $ = s => document.querySelector(s);
+const REGIONS = ['Andhra Pradesh','Telangana','Karnataka','Tamil Nadu'];
+const STORES = [
+  {id:'VJA',name:'Vijayawada',region:'Andhra Pradesh',rate:6.4,perf:1.04},
+  {id:'VSKP',name:'Visakhapatnam',region:'Andhra Pradesh',rate:7.2,perf:0.97},
+  {id:'ELR',name:'Eluru',region:'Andhra Pradesh',rate:3.6,perf:1.08},
+  {id:'GNT',name:'Guntur',region:'Andhra Pradesh',rate:4.8,perf:0.84},
+  {id:'HYD',name:'Hyderabad',region:'Telangana',rate:10.5,perf:1.02},
+  {id:'WGL',name:'Warangal',region:'Telangana',rate:4.0,perf:0.93},
+  {id:'KNR',name:'Karimnagar',region:'Telangana',rate:3.4,perf:1.05},
+  {id:'BLR',name:'Bengaluru',region:'Karnataka',rate:11.2,perf:0.96},
+  {id:'MYS',name:'Mysuru',region:'Karnataka',rate:4.4,perf:1.10},
+  {id:'IXE',name:'Mangaluru',region:'Karnataka',rate:4.2,perf:0.88},
+  {id:'MAA',name:'Chennai',region:'Tamil Nadu',rate:10.0,perf:1.01},
+  {id:'CJB',name:'Coimbatore',region:'Tamil Nadu',rate:5.6,perf:0.91}
+];
+const CATS = [
+  {id:'Grocery',w:.34,basket:620,maxU:6},
+  {id:'Apparel',w:.22,basket:1450,maxU:3},
+  {id:'Electronics',w:.10,basket:5200,maxU:2},
+  {id:'Home',w:.16,basket:1100,maxU:3},
+  {id:'Beauty',w:.10,basket:780,maxU:3},
+  {id:'Footwear',w:.08,basket:1650,maxU:2}
+];
+const MEANB = CATS.reduce((a,c)=>a+c.w*c.basket,0);
+const DAY0 = 9*60, DAY1 = 21*60, HN = 120;
+const mult = h => 0.45 + 0.9*Math.exp(-Math.pow(h-13,2)/5) + 1.15*Math.exp(-Math.pow(h-19,2)/3.5);
+const pois = l => { const L=Math.exp(-l); let k=0,p=1; do{k++;p*=Math.random();}while(p>L); return k-1; };
+const pickCat = () => { let r=Math.random(),a=0; for(const c of CATS){a+=c.w; if(r<a) return c;} return CATS[0]; };
+
+/* ---------- Simulated sales server (stands in for the real backend) ---------- */
+const Server = {
+  seq:0, clock:DAY0, socks:new Set(), anom:{}, st:{},
+  reset(){
+    this.clock = DAY0;
+    STORES.forEach(s => {
+      let exp = 0; for(let m=DAY0;m<DAY1;m++) exp += s.rate*mult(m/60)*MEANB;
+      const cats = {}; CATS.forEach(c => cats[c.id]=0);
+      this.st[s.id] = {rev:0,txn:0,units:0,plan:0,target:Math.round(exp),cats,h:{rev:[],txn:[],units:[],plan:[]}};
+    });
+  },
+  inject(){
+    const free = STORES.filter(s => !this.anom[s.id]);
+    if(!free.length) return;
+    const s = free[Math.floor(Math.random()*free.length)];
+    const spike = Math.random() < 0.55;
+    this.anom[s.id] = {f: spike ? 2.6 : 0.2, left: 22};
+  },
+  step(){
+    if(Math.random() < 1/55) this.inject();
+    const m = this.clock;
+    const d = {type:'tick',seq:++this.seq,clock:m,s:{}};
+    for(const s of STORES){
+      const a = this.anom[s.id]; let f = 1;
+      if(a){ f = a.f; if(--a.left <= 0) delete this.anom[s.id]; }
+      const lam = s.rate*mult(m/60);
+      const n = pois(lam*s.perf*f);
+      let rev=0,u=0; const cr = {};
+      for(let i=0;i<n;i++){
+        const c = pickCat(); const amt = c.basket*(0.5+Math.random());
+        rev += amt; u += 1+Math.floor(Math.random()*c.maxU);
+        cr[c.id] = (cr[c.id]||0)+amt;
+      }
+      rev = Math.round(rev); const plan = Math.round(lam*MEANB);
+      Object.keys(cr).forEach(k => cr[k] = Math.round(cr[k]));
+      const o = this.st[s.id];
+      o.rev+=rev; o.txn+=n; o.units+=u; o.plan+=plan;
+      for(const k in cr) o.cats[k] += cr[k];
+      [['rev',rev],['txn',n],['units',u],['plan',plan]].forEach(([k,v]) => { o.h[k].push(v); if(o.h[k].length>HN) o.h[k].shift(); });
+      d.s[s.id] = [n,u,rev,plan,cr];
+    }
+    this.clock++;
+    return d;
+  },
+  snapshot(){
+    const stores = {};
+    for(const id in this.st){
+      const o = this.st[id];
+      stores[id] = {rev:o.rev,txn:o.txn,units:o.units,plan:o.plan,target:o.target,cats:{...o.cats},h:{rev:[...o.h.rev],txn:[...o.h.txn],units:[...o.h.units],plan:[...o.h.plan]}};
+    }
+    return {type:'snapshot',seq:this.seq,clock:this.clock-1,stores};
+  },
+  broadcast(msg){ this.socks.forEach(s => s._deliver(msg)); },
+  start(){
+    this.reset();
+    for(let i=0;i<90;i++) this.step();
+    setInterval(() => {
+      const d = this.step(); this.broadcast(d);
+      if(this.clock >= DAY1){ this.anom = {}; this.reset(); for(let i=0;i<3;i++) this.step(); this.broadcast(this.snapshot()); }
+    }, 1000);
+  }
+};
+
+/* Same surface as the browser WebSocket: onopen, onmessage, onclose, send, close */
+class MockSocket {
+  constructor(){
+    this.readyState = 0; this.onopen = this.onmessage = this.onclose = null;
+    setTimeout(() => {
+      if(this.readyState !== 0) return;
+      this.readyState = 1; Server.socks.add(this);
+      this.onopen && this.onopen();
+      this._deliver(Server.snapshot());
+    }, 150 + Math.random()*150);
+  }
+  _deliver(msg){
+    if(this.readyState !== 1) return;
+    const payload = JSON.stringify({...msg,sentAt:Date.now()});
+    setTimeout(() => { if(this.readyState === 1 && this.onmessage) this.onmessage({data:payload}); }, 15 + Math.random()*70);
+  }
+  send(t){ const m = JSON.parse(t); if(m.type === 'resync') this._deliver(Server.snapshot()); }
+  close(){ this._end(); }
+  _end(){ if(this.readyState === 3) return; this.readyState = 3; Server.socks.delete(this); this.onclose && this.onclose({}); }
+}
+
+/* ---------- Client state ---------- */
+const S = {stores:{},seq:null,clock:DAY0,region:'all',conn:'connecting',latency:null,msgs:0,rate:0,
+  ready:false,awaitSnap:true,wasDown:false,tries:0,retryAt:0,ws:null,alerts:[],cool:{},flag:{},hover:null,lastConnLabel:''};
+
+const inr = n => n>=1e7 ? '₹'+(n/1e7).toFixed(2)+' Cr' : n>=1e5 ? '₹'+(n/1e5).toFixed(2)+' L' : '₹'+Math.round(n).toLocaleString('en-IN');
+const int = n => Math.round(n).toLocaleString('en-IN');
+const pctf = v => (v*100).toFixed(1)+'%';
+const hm = m => String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+const avg = a => a.length ? a.reduce((x,y)=>x+y,0)/a.length : 0;
+const roll = (a,w) => a.map((_,i) => avg(a.slice(Math.max(0,i-w+1),i+1)));
+const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const tone = p => p >= 0.98 ? 'ok' : p >= 0.9 ? 'warn' : 'bad';
+
+function pushAlert(sev,title,body){
+  S.alerts.unshift({sev,title,body,t:hm(S.clock)});
+  if(S.alerts.length > 14) S.alerts.pop();
+}
+
+function connect(){
+  S.conn = S.tries ? 'reconnecting' : 'connecting';
+  S.awaitSnap = true;
+  const ws = new MockSocket();   // swap for: new WebSocket('wss://your-host/stream')
+  S.ws = ws;
+  ws.onopen = () => { S.conn = 'live'; S.tries = 0; renderStatus(); announce('Connected. Live updates on.'); };
+  ws.onmessage = e => {
+    const m = JSON.parse(e.data); S.msgs++;
+    const lat = Date.now() - m.sentAt; S.latency = S.latency == null ? lat : S.latency*0.8 + lat*0.2;
+    if(m.type === 'snapshot') applySnapshot(m); else applyTick(m);
+  };
+  ws.onclose = () => {
+    if(S.ws !== ws) return;
+    S.conn = 'down'; S.wasDown = true;
+    const d = Math.min(1000*Math.pow(2,S.tries),8000); S.tries++;
+    S.retryAt = Date.now() + d;
+    announce('Connection lost. Retrying.');
+    renderStatus(); render();
+    setTimeout(connect, d);
+  };
+}
+function announce(t){ $('#sr').textContent = t; }
+
+function applySnapshot(m){
+  const missed = S.seq != null ? m.seq - S.seq - 1 : 0;
+  S.stores = m.stores; S.seq = m.seq; S.clock = m.clock; S.ready = true; S.awaitSnap = false;
+  if(S.wasDown){
+    S.wasDown = false;
+    pushAlert('info','Reconnected', missed > 0 ? `${missed} updates were missed while offline, so the dashboard reloaded a full snapshot.` : 'The stream resumed with no missed updates.');
+  }
+  render();
+}
+function applyTick(m){
+  if(!S.ready || S.awaitSnap) return;
+  if(m.seq !== S.seq + 1){ S.awaitSnap = true; S.ws.send(JSON.stringify({type:'resync'})); return; }
+  for(const id in m.s){
+    const [n,u,rev,plan,cr] = m.s[id]; const o = S.stores[id];
+    o.rev+=rev; o.txn+=n; o.units+=u; o.plan+=plan;
+    for(const k in cr) o.cats[k] = (o.cats[k]||0) + cr[k];
+    [['rev',rev],['txn',n],['units',u],['plan',plan]].forEach(([k,v]) => { o.h[k].push(v); if(o.h[k].length>HN) o.h[k].shift(); });
+  }
+  S.seq = m.seq; S.clock = m.clock;
+  detect(); render();
+}
+
+function detect(){
+  for(const s of STORES){
+    const h = S.stores[s.id].h.rev;
+    if(h.length < 46 || S.seq < (S.cool[s.id]||0)) continue;
+    const base = avg(h.slice(-45,-5)), now = avg(h.slice(-5));
+    if(base <= 0) continue;
+    const r = now/base;
+    if(r > 1.8){
+      pushAlert('good',`${s.name}: demand surge`,`The last 5 minutes are running at ${r.toFixed(1)}× the previous 40. Check stock cover on fast movers and till capacity.`);
+      S.cool[s.id] = S.seq+30; S.flag[s.id] = {kind:'surge',until:S.seq+18};
+    } else if(r < 0.45){
+      pushAlert('bad',`${s.name}: sales dropped`,`The last 5 minutes are at ${Math.round(r*100)}% of the previous 40. Check tills, staffing and stock.`);
+      S.cool[s.id] = S.seq+30; S.flag[s.id] = {kind:'dip',until:S.seq+18};
+    }
+  }
+  if(S.seq % 25 === 0){
+    const rows = STORES.map(s => ({s,p:S.stores[s.id].plan ? S.stores[s.id].rev/S.stores[s.id].plan : 0})).sort((a,b)=>b.p-a.p);
+    const b = rows[0], w = rows[rows.length-1];
+    pushAlert('info','Pace check',`${b.s.name} leads plan pace at ${pctf(b.p)}. ${w.s.name} trails at ${pctf(w.p)}.`);
+  }
+}
+
+/* ---------- Aggregation ---------- */
+function filtered(){ return STORES.filter(s => S.region==='all' || s.region===S.region); }
+function agg(){
+  const L = filtered();
+  const o = {rev:0,txn:0,units:0,plan:0,target:0,revS:[],txnS:[],unitsS:[],planS:[]};
+  let len = Infinity;
+  L.forEach(s => { const st = S.stores[s.id]; o.rev+=st.rev; o.txn+=st.txn; o.units+=st.units; o.plan+=st.plan; o.target+=st.target; len = Math.min(len,st.h.rev.length); });
+  if(!isFinite(len)) len = 0;
+  for(let i=0;i<len;i++){
+    let r=0,t=0,u=0,p=0;
+    L.forEach(s => { const h = S.stores[s.id].h, k = h.rev.length-len+i; r+=h.rev[k]; t+=h.txn[k]; u+=h.units[k]; p+=h.plan[k]; });
+    o.revS.push(r); o.txnS.push(t); o.unitsS.push(u); o.planS.push(p);
+  }
+  return o;
+}
+
+/* ---------- Rendering ---------- */
+const spark = a => {
+  if(a.length < 2) return '';
+  const mx = Math.max(...a), mn = Math.min(...a), r = (mx-mn)||1;
+  const pts = a.map((v,i) => `${(i/(a.length-1)*100).toFixed(1)},${(26-(v-mn)/r*24).toFixed(1)}`).join(' ');
+  return `<svg viewBox="0 0 100 28" preserveAspectRatio="none" class="spark" aria-hidden="true"><polyline points="${pts}" fill="none" stroke="currentColor" stroke-width="1.6" vector-effect="non-scaling-stroke"/></svg>`;
+};
+
+function renderStatus(){
+  const el = $('#status');
+  if(S.conn === 'live'){
+    el.innerHTML = `<span><span class="dot live"></span><b>Live</b></span><span>Delay <b>${Math.round(S.latency||0)} ms</b></span><span><b>${S.rate.toFixed(1)}</b> messages a second</span><span>Update <b>#${S.seq ?? '–'}</b></span>`;
+  } else if(S.conn === 'down'){
+    const s = Math.max(0,Math.ceil((S.retryAt-Date.now())/1000));
+    el.innerHTML = `<span><span class="dot down"></span><b>Offline</b></span><span>Retrying in <b>${s} s</b></span><span>Showing data as of <b>${hm(S.clock)}</b></span>`;
+  } else {
+    el.innerHTML = `<span><span class="dot wait"></span><b>${S.conn === 'reconnecting' ? 'Reconnecting' : 'Connecting'}…</b></span>`;
+  }
+  $('#kpis').classList.toggle('stale', S.conn !== 'live');
+}
+
+function render(){
+  renderStatus();
+  if(!S.ready) return;
+  $('#clock').textContent = `Store time ${hm(S.clock)}. One second here is one store minute.`;
+  const A = agg();
+  renderKpis(A); renderChart(A); renderFeed(); renderStores(); renderMix();
+}
+
+function renderKpis(A){
+  const pace = A.plan ? A.rev/A.plan : 0, diff = A.rev - A.plan;
+  const last = (a,n) => a.slice(-n);
+  const basketS = roll(A.revS.map((r,i) => A.txnS[i] ? r/A.txnS[i] : 0),8);
+  const upbS = roll(A.unitsS.map((u,i) => A.txnS[i] ? u/A.txnS[i] : 0),8);
+  const r10 = last(A.revS,10), t10 = last(A.txnS,10), u10 = last(A.unitsS,10);
+  const k = [
+    {k:'Revenue today',v:inr(A.rev),s:`Day target ${inr(A.target)}`,sp:spark(last(roll(A.revS,4),50))},
+    {k:'Pace vs plan',v:pctf(pace),cls:tone(pace),s:`${inr(Math.abs(diff))} ${diff>=0?'ahead of':'behind'} plan to date`,sp:''},
+    {k:'Transactions',v:int(A.txn),s:`${int(A.txnS[A.txnS.length-1]||0)} in the last minute`,sp:spark(last(roll(A.txnS,4),50))},
+    {k:'Average basket',v:inr(A.txn?A.rev/A.txn:0),s:`${inr(avg(t10)?avg(r10)/avg(t10):0)} over the last 10 minutes`,sp:spark(last(basketS,50))},
+    {k:'Units per basket',v:(A.txn?A.units/A.txn:0).toFixed(2),s:`${(avg(t10)?avg(u10)/avg(t10):0).toFixed(2)} over the last 10 minutes`,sp:spark(last(upbS,50))}
+  ];
+  $('#kpis').innerHTML = k.map(x => `<div class="kpi"><div class="k">${x.k}</div><div class="v ${x.cls||''}">${x.v}</div><div class="s">${x.s}</div>${x.sp}</div>`).join('');
+}
+
+function niceMax(v){
+  if(v <= 0) return 1;
+  const p = Math.pow(10,Math.floor(Math.log10(v))), f = v/p;
+  return (f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p;
+}
+function renderChart(A){
+  const el = $('#chart');
+  const ys = A.revS.slice(-90), ps = A.planS.slice(-90), N = ys.length;
+  if(!N){ el.innerHTML = '<p class="empty">Waiting for the first sales of the day…</p>'; return; }
+  const W = Math.max(el.clientWidth,280), H = W < 520 ? 200 : 250;
+  const m = {l:56,r:10,t:10,b:24};
+  const max = niceMax(Math.max(...ys,...ps)*1.05);
+  const x = i => m.l + (W-m.l-m.r)*i/Math.max(N-1,1);
+  const y = v => H-m.b-(H-m.t-m.b)*v/max;
+  const line = a => a.map((v,i) => `${i?'L':'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('');
+  let grid = '';
+  for(let g=0; g<=4; g++){
+    const v = max*g/4, yy = y(v);
+    grid += `<line x1="${m.l}" x2="${W-m.r}" y1="${yy}" y2="${yy}" stroke="var(--line)"/><text x="${m.l-8}" y="${yy+4}" text-anchor="end">${inr(v)}</text>`;
+  }
+  let xl = '';
+  [0,.33,.66,1].forEach(f => {
+    const i = Math.round((N-1)*f), t = S.clock-(N-1-i);
+    xl += `<text x="${x(i)}" y="${H-6}" text-anchor="${f===0?'start':f===1?'end':'middle'}">${hm(t)}</text>`;
+  });
+  const hi = S.hover != null ? Math.min(S.hover,N-1) : N-1;
+  let hover = '';
+  if(S.hover != null) hover = `<line x1="${x(hi)}" x2="${x(hi)}" y1="${m.t}" y2="${H-m.b}" stroke="var(--ink)" stroke-opacity=".35"/><circle cx="${x(hi)}" cy="${y(ys[hi])}" r="4" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>`;
+  else hover = `<circle cx="${x(N-1)}" cy="${y(ys[N-1])}" r="4" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>`;
+  el.innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Line chart of revenue per minute against plan">
+    ${grid}${xl}
+    <path d="${line(ys)}L${x(N-1)},${y(0)}L${x(0)},${y(0)}Z" fill="var(--accent)" fill-opacity=".10"/>
+    <path d="${line(ps)}" fill="none" stroke="var(--plan)" stroke-width="1.6" stroke-dasharray="5 4"/>
+    <path d="${line(ys)}" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linejoin="round"/>
+    ${hover}</svg>`;
+  const t = S.clock-(N-1-hi);
+  $('#readout').innerHTML = `<span><b>${hm(t)}</b></span><span>Actual <b>${inr(ys[hi])}</b></span><span>Plan <b>${inr(ps[hi])}</b></span><span>${ps[hi] ? (ys[hi]>=ps[hi]?'+':'−')+Math.abs((ys[hi]/ps[hi]-1)*100).toFixed(0)+'% vs plan' : ''}</span>`;
+  el._N = N;
+}
+const chartEl = $('#chart');
+chartEl.addEventListener('pointermove', e => {
+  if(!chartEl._N) return;
+  const r = chartEl.getBoundingClientRect(), m = {l:56,r:10};
+  const f = (e.clientX - r.left - m.l)/Math.max(r.width-m.l-m.r,1);
+  S.hover = Math.max(0,Math.min(chartEl._N-1,Math.round(f*(chartEl._N-1))));
+  if(S.ready) renderChart(agg());
+});
+chartEl.addEventListener('pointerleave', () => { S.hover = null; if(S.ready) renderChart(agg()); });
+
+function renderFeed(){
+  const el = $('#feed');
+  if(!S.alerts.length){ el.innerHTML = '<li class="m">Alerts appear here when a store sells well above or below its recent pace. Use “Trigger a store anomaly” to see one now.</li>'; return; }
+  el.innerHTML = S.alerts.map(a => `<li class="${a.sev}"><span class="when">${a.t}</span><div class="t">${esc(a.title)}</div><div class="m">${esc(a.body)}</div></li>`).join('');
+}
+
+function renderStores(){
+  const L = filtered().map(s => {
+    const o = S.stores[s.id]; return {s,o,p:o.plan ? o.rev/o.plan : 0};
+  }).sort((a,b) => b.o.rev - a.o.rev);
+  const head = `<div class="row head"><div>Store</div><div>Revenue</div><div>Pace vs plan</div><div style="text-align:right">Pace</div><div>Last 30 min</div></div>`;
+  $('#stores').innerHTML = head + L.map(({s,o,p}) => {
+    const t = tone(p), w = Math.min(p,1.3)/1.3*100;
+    const fl = S.flag[s.id] && S.flag[s.id].until > S.seq ? S.flag[s.id] : null;
+    const tag = fl ? `<span class="tag ${fl.kind==='surge'?'good':'bad'}">${fl.kind==='surge'?'Surge':'Dip'}</span>` : '';
+    return `<div class="row"><div class="nm">${s.name}${tag}<small>${s.region}</small></div>
+      <div class="num rev">${inr(o.rev)}</div>
+      <div class="bar"><div class="track"><div class="fill ${t==='ok'?'':t}" style="width:${w}%"></div><div class="mark" style="left:${100/1.3}%"></div></div></div>
+      <div class="pct ${t}">${(p*100).toFixed(0)}%</div>
+      <div class="rs">${spark(roll(o.h.rev,3).slice(-30))}</div></div>`;
+  }).join('');
+}
+
+function renderMix(){
+  const tot = {}; CATS.forEach(c => tot[c.id]=0);
+  filtered().forEach(s => { const c = S.stores[s.id].cats; for(const k in c) tot[k]+=c[k]; });
+  const sum = Object.values(tot).reduce((a,b)=>a+b,0)||1;
+  $('#mix').innerHTML = CATS.map(c => c.id).sort((a,b)=>tot[b]-tot[a]).map(k =>
+    `<div class="r"><span>${k}</span><div class="track"><div class="fill" style="width:${tot[k]/sum*100}%"></div></div><span class="num" style="text-align:right">${(tot[k]/sum*100).toFixed(0)}%</span></div>`).join('');
+}
+
+/* ---------- Ask the data (rule-based NL to SQL) ---------- */
+const FMT = {revenue:inr,plan:inr,target:inr,avg_basket:inr,pace:pctf,transactions:int,units:int,share:v=>(v*100).toFixed(1)+'%'};
+const LBL = {avg_basket:'Avg basket',pace:'Pace vs plan'};
+function storeRows(){
+  return STORES.map(s => { const o = S.stores[s.id];
+    return {store:s.name,region:s.region,revenue:o.rev,transactions:o.txn,units:o.units,plan:o.plan,target:o.target,pace:o.plan?o.rev/o.plan:0,avg_basket:o.txn?o.rev/o.txn:0}; });
+}
+function ask(q){
+  const t = q.toLowerCase();
+  const region = REGIONS.find(r => t.includes(r.toLowerCase()));
+  const cat = CATS.find(c => t.includes(c.id.toLowerCase()));
+  const nm = t.match(/(?:top|bottom|worst|best|lowest|highest|first|last)\s+(\d+)/) || t.match(/\b(\d+)\b/);
+  const n = nm ? Math.min(12,parseInt(nm[1],10)) : null;
+  const asc = /bottom|worst|lowest|least|weakest|fewest/.test(t);
+  const below = /below|behind|lagging|under(?:perform)?|missing/.test(t) && /plan|target|pace|store/.test(t);
+  const above = /above|ahead|exceed|beating/.test(t) && /plan|target|pace/.test(t);
+
+  if(cat || /categor/.test(t)){
+    const rows = [];
+    STORES.forEach(s => {
+      if(region && s.region !== region) return;
+      const c = S.stores[s.id].cats;
+      CATS.forEach(k => rows.push({store:s.name,region:s.region,category:k.id,revenue:c[k.id]||0}));
+    });
+    const where = [cat && `category = '${cat.id}'`, region && `region = '${region}'`].filter(Boolean);
+    const W = where.length ? '\nWHERE '+where.join(' AND ') : '';
+    if(cat){
+      const lim = n || 5;
+      const data = rows.filter(r => r.category === cat.id).sort((a,b) => asc ? a.revenue-b.revenue : b.revenue-a.revenue).slice(0,lim);
+      return {sql:`SELECT store, region, category, revenue\nFROM sales_by_category${W}\nORDER BY revenue ${asc?'ASC':'DESC'}\nLIMIT ${lim};`,cols:['store','region','category','revenue'],rows:data};
+    }
+    const g = {}; rows.forEach(r => g[r.category] = (g[r.category]||0)+r.revenue);
+    const total = Object.values(g).reduce((a,b)=>a+b,0)||1;
+    const data = Object.keys(g).map(k => ({category:k,revenue:g[k],share:g[k]/total})).sort((a,b)=>b.revenue-a.revenue);
+    return {sql:`SELECT category, SUM(revenue) AS revenue,\n       SUM(revenue) / SUM(SUM(revenue)) OVER () AS share\nFROM sales_by_category${W}\nGROUP BY category\nORDER BY revenue DESC;`,cols:['category','revenue','share'],rows:data};
+  }
+  if(!region && /by region|per region|each region|region.?wise|regions/.test(t)){
+    const g = {};
+    storeRows().forEach(r => { const o = g[r.region] = g[r.region] || {region:r.region,revenue:0,transactions:0,plan:0}; o.revenue+=r.revenue; o.transactions+=r.transactions; o.plan+=r.plan; });
+    const data = Object.values(g).map(o => ({...o,avg_basket:o.transactions?o.revenue/o.transactions:0,pace:o.plan?o.revenue/o.plan:0})).sort((a,b)=>b.revenue-a.revenue);
+    return {sql:`SELECT region,\n       SUM(revenue) AS revenue,\n       SUM(transactions) AS transactions,\n       SUM(revenue) / SUM(transactions) AS avg_basket,\n       SUM(revenue) / SUM(plan_to_date) AS pace\nFROM sales_by_store\nGROUP BY region\nORDER BY revenue DESC;`,cols:['region','revenue','transactions','avg_basket','pace'],rows:data};
+  }
+  let metric = 'revenue';
+  if(/basket/.test(t)) metric = 'avg_basket';
+  else if(/transaction|bills|orders/.test(t)) metric = 'transactions';
+  else if(/unit/.test(t)) metric = 'units';
+  else if(/pace|plan|target|below|behind|lagging|ahead/.test(t)) metric = 'pace';
+  let data = storeRows(); const where = [];
+  if(region){ where.push(`region = '${region}'`); data = data.filter(r => r.region === region); }
+  if(below){ where.push('pace < 1.00'); data = data.filter(r => r.pace < 1); }
+  if(above){ where.push('pace >= 1.00'); data = data.filter(r => r.pace >= 1); }
+  const dir = (asc || below) ? 'ASC' : 'DESC';
+  data.sort((a,b) => dir==='ASC' ? a[metric]-b[metric] : b[metric]-a[metric]);
+  const lim = n || ((below||above||region) ? 12 : 5);
+  data = data.slice(0,lim);
+  const cols = ['store','region',metric]; if((below||above) && metric !== 'pace') cols.push('pace');
+  if(metric !== 'revenue' && !cols.includes('revenue') && (below||above)) cols.push('revenue');
+  const W = where.length ? '\nWHERE '+where.join(' AND ') : '';
+  const sqlCols = cols.map(c => c === 'pace' ? 'revenue / plan_to_date AS pace' : c === 'avg_basket' ? 'revenue / transactions AS avg_basket' : c).join(', ');
+  return {sql:`SELECT ${sqlCols}\nFROM sales_by_store${W}\nORDER BY ${metric} ${dir}\nLIMIT ${lim};`,cols,rows:data};
+}
+function runAsk(q){
+  q = q.trim(); if(!q) return;
+  const el = $('#answer');
+  if(!S.ready){ el.innerHTML = '<p class="empty">The sales stream is still connecting.</p>'; return; }
+  const r = ask(q);
+  const th = r.cols.map(c => `<th class="${FMT[c]?'n':''}">${LBL[c]||c.charAt(0).toUpperCase()+c.slice(1).replace('_',' ')}</th>`).join('');
+  const tb = r.rows.map(row => `<tr>${r.cols.map(c => `<td class="${FMT[c]?'n':''}">${FMT[c]?FMT[c](row[c]):esc(row[c])}</td>`).join('')}</tr>`).join('');
+  el.innerHTML = `<pre class="sql">${esc(r.sql)}</pre>` + (r.rows.length ? `<div class="tbl"><table><thead><tr>${th}</tr></thead><tbody>${tb}</tbody></table></div><p class="hint">Result from the live tables at store time ${hm(S.clock)}. Run again to refresh.</p>` : '<p class="empty">No rows match right now. Stores move in and out of this condition as sales come in.</p>');
+}
+const SUGGEST = ['Top 3 stores by revenue','Stores below plan','Revenue by region','Electronics revenue by store','Lowest average basket','Category mix in Karnataka'];
+$('#chips').innerHTML = SUGGEST.map(s => `<button type="button" class="chip">${s}</button>`).join('');
+$('#chips').addEventListener('click', e => { if(e.target.classList.contains('chip')){ $('#q').value = e.target.textContent; runAsk(e.target.textContent); } });
+$('#go').addEventListener('click', () => runAsk($('#q').value));
+$('#q').addEventListener('keydown', e => { if(e.key === 'Enter') runAsk($('#q').value); });
+
+/* ---------- Controls ---------- */
+REGIONS.forEach(r => { const o = document.createElement('option'); o.value = r; o.textContent = r; $('#region').appendChild(o); });
+$('#region').addEventListener('change', e => { S.region = e.target.value; S.hover = null; render(); });
+$('#drop').addEventListener('click', () => { if(S.ws && S.conn === 'live') S.ws._end(); });
+$('#anom').addEventListener('click', () => Server.inject());
+
+/* Installable-app plumbing: manifest is generated in-page; a service worker needs your own origin. */
+try{
+  const icon = 'data:image/svg+xml,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192"><rect width="192" height="192" rx="36" fill="#0B7A75"/><path d="M28 132l38-44 30 26 68-70" fill="none" stroke="#fff" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/></svg>');
+  const man = {name:'Retail KPI Live',short_name:'KPI Live',display:'standalone',background_color:'#E8ECEF',theme_color:'#0B7A75',start_url:'.',icons:[{src:icon,sizes:'any',type:'image/svg+xml'}]};
+  const l = document.createElement('link'); l.rel = 'manifest';
+  l.href = URL.createObjectURL(new Blob([JSON.stringify(man)],{type:'application/manifest+json'}));
+  document.head.appendChild(l);
+}catch(e){}
+let deferred = null;
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; $('#install').hidden = false; });
+$('#install').addEventListener('click', async () => { if(deferred){ deferred.prompt(); deferred = null; $('#install').hidden = true; } });
+
+let rt; window.addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(() => S.ready && renderChart(agg()), 120); });
+setInterval(() => { S.rate = S.msgs/2; S.msgs = 0; renderStatus(); }, 2000);
+setInterval(() => { if(S.conn === 'down') renderStatus(); }, 500);
+
+Server.start();
+connect();
+renderFeed();
+})();
+</script>
+</body>
+</html>
